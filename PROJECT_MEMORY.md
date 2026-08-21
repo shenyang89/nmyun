@@ -174,15 +174,16 @@ SaaS工具 → 交易平台 → 供应链基础设施 → 金融与数据引擎 
 - [x] 初始化 ThinkPHP 8.0 项目并配置基础环境
 - [x] 安装核心扩展包（think-orm / think-cors / predis）
 - [x] 配置 PostgreSQL 默认连接 + nmyun_ 表前缀
-- [x] 配置 Redis 默认缓存驱动 + file 备选
+- [x] 配置缓存驱动（file 默认，redis 可选；新手阶段用 file 无需起 Redis 服务）
 - [x] 配置 CORS 跨域策略（开发阶段开放，生产需收紧）
 - [x] 创建 .env.example 环境变量模板
 - [x] 烟雾测试：`php think run` 返回 HTTP 200，CORS OPTIONS 返回 204
-- [ ] ⚠️ 安装 PHP 运行时扩展：`pdo_pgsql` + `redis`（连接 PG/Redis 前必须）
-- [ ] 搭建分层架构基础框架（controller / service / repository / model 四层）
+- [x] 搭建分层架构基础框架（BaseController / BaseService / BaseRepository / BaseModel）
+- [x] 编写核心 Trait（ApiResponseTrait、PaginatesTrait）+ 自定义异常体系 + 统一 JSON 错误处理
+- [x] 完成 Merchant 商户端完整示例链路（Model→Repository→Service→Controller→Validate→路由）并验证通过
+- [ ] ⚠️ 安装 PHP 运行时扩展：`pdo_pgsql` + `redis`（真实连接 PG/Redis 前必须）
+- [ ] 创建 PostgreSQL 迁移脚本：五大核心实体表（supplier / merchant / buyer / user / group_leader）+ 交易模型
 - [ ] 设计五条业务链路的详细流程
-- [ ] 数据库设计（五大核心实体 + 交易模型）
-- [ ] 设计 PostgreSQL 表结构并创建迁移脚本
 - [ ] API 接口设计（遵循分层架构原则，禁止跨层调用）
 - [ ] 配置 Redis 缓存策略（缓存穿透/击穿/雪崩防护）
 - [ ] 编写详细的项目需求文档
@@ -195,19 +196,53 @@ SaaS工具 → 交易平台 → 供应链基础设施 → 金融与数据引擎 
 ### 2. 环境变量加载机制
 ThinkPHP 8 通过 `vlucas/phpdotenv` 读取 `.env` 文件，**shell 环境变量优先级低于 `.env` 文件**。若未创建 `.env`，配置中 `env('KEY', 'default')` 将回退到 default 值。
 
-### 3. 分层架构约束
-关键决策明确：**禁止跨层调用**。建议目录分层：
-```
-app/
-  controller/   → 仅接收请求 + 参数校验 + 返回响应
-  service/      → 业务逻辑编排
-  repository/   → 数据访问（封装 ThinkORM 查询）
-  model/        → 纯数据模型 + 关联关系定义
-```
-每层只能调用下一层（Controller → Service → Repository → Model），禁止反向或跳层。
+### 3. 分层架构约束（核心红线）
+项目已严格按「禁止跨层调用」决策落地，调用方向为：
 
-### 4. PostgreSQL 小提示
+```
+controller → service → repository → model
+    ↓           ↓            ↓          ↓
+参数校验   业务规则/编排   封装CRUD    表定义 + 关联
+```
+
+| 层级 | 禁止事项 | 正确做法 |
+|------|---------|---------|
+| Controller | 禁止直接 `use` Model / Repository，禁止写业务 if-else | 调 `$this->validate()` → 调 Service → 调 Trait 返回 JSON |
+| Service | 禁止直接 `use` ThinkORM 类写 SQL | 只通过 `$this->repo()` 或其他 Service 读写数据；业务判断写在 Service |
+| Repository | 禁止出现业务判断 | 只做通用查询封装 + CRUD，找不到记录可抛 NotFoundException |
+| Model | 禁止出现任何业务逻辑 | 只定义表名/主键/关联/允许写入字段白名单 |
+
+### 4. 统一响应格式 & 错误码规范
+所有 API 统一响应（在 `app/traits/ApiResponseTrait.php` + `app/ExceptionHandle.php` 中实现）：
+```json
+{ "code": 0, "message": "success", "data": {}, "timestamp": 1787280000 }
+```
+错误码编码规则：
+| code 范围 | 含义 | 示例 |
+|-----------|------|------|
+| `0` | 成功 | code=0 |
+| `1~9999` | 各业务模块错误 | 商户 10xxx：10001 商户编号已存在；10002 状态值无效 |
+| `40001` | 参数校验失败（ValidateException） | 商户编号不能为空 |
+| `40101` | 未登录（UnauthorizedException） | 请先登录 |
+| `40301` | 无权限（UnauthorizedException） | 禁止访问 |
+| `40400` | 路由层 404（HttpException） | controller not exists |
+| `40401` | 业务资源不存在（NotFoundException） | 商户不存在 |
+| `50000` | 未捕获运行时 BUG | APP_DEBUG=true 时附 file:line + trace |
+
+### 5. 路由分组写法
+ThinkPHP 8 中使用 `Route::group('api', function(){ ... })` 才是「为组内路由加前缀 api」的正确写法；不要用 `Route::group(function(){...})->prefix('api/')`，否则会把 `api/` 当成控制器命名空间的一部分导致找不到控制器。
+
+### 6. 缓存驱动默认值
+为方便新手入门，`config/cache.php` 中 `CACHE_DRIVER` 的 env 默认值已改为 **`file`**（这样即使本地没运行 Redis 服务也能直接启动项目）。生产环境或本地起了 Redis 后，只要在 `.env` 中加一行：
+```
+CACHE_DRIVER=redis
+```
+即可无缝切换到 Redis。
+
+### 7. PostgreSQL 小提示
 - PGSQL 的自增主键用 `SERIAL` 或 `BIGSERIAL`，迁移脚本里注意和 MySQL 的 `AUTO_INCREMENT` 不同
 - 字符集直接用 `UTF8`，无需 `utf8mb4`（PG 原生支持 4 字节 Unicode）
 - 表前缀 `nmyun_` 已在配置中统一，创建迁移时无需手工加前缀
+- 如果运行时报 `could not find driver`：说明 `pdo_pgsql` PHP 扩展未加载；`apt install php-pgsql` 后重启 PHP 即可
+
 

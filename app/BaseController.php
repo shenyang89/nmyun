@@ -1,26 +1,37 @@
 <?php
+
 declare (strict_types = 1);
 
 namespace app;
 
+use app\traits\ApiResponseTrait;
+use app\traits\PaginatesTrait;
 use think\App;
 use think\exception\ValidateException;
 use think\Validate;
 
 /**
- * 控制器基础类
+ * 控制器基础类 —— 智慧农贸云增强版
+ *
+ * 分层约束：
+ * - 只做三件事：① 接收请求 + 参数校验  ② 调用 Service  ③ 调用 Trait 转 JSON 返回
+ * - 禁止直接 use Model / Repository
+ * - 禁止在此类里写业务逻辑（if-else 循环等）
  */
 abstract class BaseController
 {
+    use ApiResponseTrait;
+    use PaginatesTrait;
+
     /**
-     * Request实例
+     * Request 实例
      * @var \think\Request
      */
     protected $request;
 
     /**
      * 应用实例
-     * @var \think\App
+     * @var App
      */
     protected $app;
 
@@ -36,59 +47,53 @@ abstract class BaseController
      */
     protected $middleware = [];
 
-    /**
-     * 构造方法
-     * @access public
-     * @param  App  $app  应用对象
-     */
     public function __construct(App $app)
     {
         $this->app     = $app;
         $this->request = $this->app->request;
-
-        // 控制器初始化
         $this->initialize();
     }
 
-    // 初始化
     protected function initialize()
     {}
 
     /**
-     * 验证数据
-     * @access protected
-     * @param  array        $data     数据
-     * @param  string|array $validate 验证器名或者验证规则数组
-     * @param  array        $message  提示信息
-     * @param  bool         $batch    是否批量验证
-     * @return array|string|true
+     * 验证数据（失败自动抛 ValidateException，被 ExceptionHandle 捕获转 JSON）
+     *
+     * @param  array                    $data
+     * @param  string|array             $validate 验证器名或规则数组
+     * @param  array                    $message  自定义提示
+     * @param  bool                     $batch    是否批量校验
      * @throws ValidateException
+     * @return true
      */
-    protected function validate(array $data, string|array $validate, array $message = [], bool $batch = false)
-    {
+    protected function validate(
+        array $data,
+        string|array $validate,
+        array $message = [],
+        bool $batch = false
+    ): bool {
         if (is_array($validate)) {
             $v = new Validate();
             $v->rule($validate);
         } else {
             if (strpos($validate, '.')) {
-                // 支持场景
                 [$validate, $scene] = explode('.', $validate);
             }
-            $class = false !== strpos($validate, '\\') ? $validate : $this->app->parseClass('validate', $validate);
-            $v     = new $class();
+            $class = str_contains($validate, '\\')
+                ? $validate
+                : $this->app->parseClass('validate', $validate);
+            $v = new $class();
             if (!empty($scene)) {
                 $v->scene($scene);
             }
         }
 
         $v->message($message);
-
-        // 是否批量验证
         if ($batch || $this->batchValidate) {
             $v->batch(true);
         }
 
         return $v->failException(true)->check($data);
     }
-
 }

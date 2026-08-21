@@ -7,7 +7,9 @@
 
 return [
     // 默认缓存驱动
-    'default' => env('CACHE_DRIVER', 'redis'),
+    // ⚠️ 新手开发阶段推荐用 file（不需要运行 Redis 服务）
+    //    当 Redis 服务可用后，在 .env 中设置 CACHE_DRIVER=redis 即可切换
+    'default' => env('CACHE_DRIVER', 'file'),
 
     // 缓存连接方式配置
     'stores'  => [
