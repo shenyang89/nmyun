@@ -4,6 +4,7 @@ declare (strict_types=1);
 
 namespace app\controller;
 
+use app\attribute\AllowSuperAdminBypass;
 use app\BaseController;
 use app\service\MerchantService;
 
@@ -13,6 +14,10 @@ use app\service\MerchantService;
  * 1. 只做：接收请求 → 参数校验 → 调 Service → 返回 JSON
  * 2. 严禁直接 use Merchant / MerchantRepository
  * 3. 严禁在这里写 if-else 业务判断（写到 Service 里）
+ *
+ * 超管白名单（§13.8.3）：
+ * - list / detail / changeStatus 标注 #[AllowSuperAdminBypass]，超管跨租户可调
+ * - create / update / delete 未标注：超管必须先加入目标租户的 tenant_member 才能调用
  */
 class MerchantController extends BaseController
 {
@@ -26,6 +31,7 @@ class MerchantController extends BaseController
     /**
      * GET /api/merchant/list  商户列表（分页）
      */
+    #[AllowSuperAdminBypass]
     public function list()
     {
         $where = [];
@@ -53,6 +59,7 @@ class MerchantController extends BaseController
     /**
      * GET /api/merchant/:id  商户详情
      */
+    #[AllowSuperAdminBypass]
     public function detail(int $id)
     {
         $model = $this->merchantService->detailOrFail($id);

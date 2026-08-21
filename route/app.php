@@ -36,4 +36,8 @@ Route::group('api', function () {
 })
     // 统一挂载租户上下文中间件：解析 JWT/开发头、校验租户状态、读写拦截
     ->middleware(\app\middleware\TenantContextMiddleware::class)
+    // 超管白名单 + 审计中间件（§13.8.3 Phase 1.6）：
+    //   前置拦截超管调用未标注 #[AllowSuperAdminBypass] 的接口
+    //   后置自动记录超管写操作到 super_admin_audit_log
+    ->middleware(\app\middleware\SuperAdminBypassMiddleware::class)
     ->allowCrossDomain();
