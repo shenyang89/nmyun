@@ -48,6 +48,7 @@ class TenantContextMiddleware
         '#^/api/sadmin/tenants#',
         '#^/api/sadmin/plans#',
         '#^/api/sadmin/invoices#',
+        '#^/api/sadmin/audit-logs#',
     ];
 
     public function __construct(

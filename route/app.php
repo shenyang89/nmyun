@@ -26,6 +26,22 @@ Route::group('api', function () {
     // POST /api/sadmin/login  超管登录 → 签发 JWT（白名单，无需鉴权）
     Route::post('sadmin/login', 'SuperAdminAuthController/login');
 
+    // ---- Phase 1.7 超管后台 MVP 接口（平台作用域，#[AllowSuperAdminBypass]）----
+    // 租户管理
+    Route::get('sadmin/tenants', 'SuperAdminTenantController/list');
+    Route::post('sadmin/tenants', 'SuperAdminTenantController/create');
+    Route::patch('sadmin/tenants/:id/status', 'SuperAdminTenantController/switchStatus');
+
+    // 套餐管理
+    Route::get('sadmin/plans', 'SuperAdminPlanController/list');
+    Route::post('sadmin/plans', 'SuperAdminPlanController/create');
+
+    // 账单管理（跨租户查询）
+    Route::get('sadmin/invoices', 'SuperAdminInvoiceController/list');
+
+    // 审计日志查询
+    Route::get('sadmin/audit-logs', 'SuperAdminAuditLogController/list');
+
     // 后续业务模块在这里追加……
     // Route::get('supplier/list',        'SupplierController/list');      // 产地供应商（链路A）
     // Route::get('buyer/list',           'BuyerController/list');         // B端采购方（链路B）
