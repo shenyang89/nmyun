@@ -44,11 +44,28 @@ class TenantContextMiddleware
      * - /api/sadmin/invoices* 账单概览（Phase 1.7 占位）
      */
     private const PLATFORM_WHITELIST = [
+        // 超管平台作用域路由
         '#^/api/sadmin/login$#',
         '#^/api/sadmin/tenants#',
         '#^/api/sadmin/plans#',
         '#^/api/sadmin/invoices#',
         '#^/api/sadmin/audit-logs#',
+        // 租户成员登录 + 邀请接受（无 JWT 也可访问）
+        '#^/api/auth/login$#',
+        '#^/api/member/invite/accept$#',
+    ];
+
+    /**
+     * 认证类路由白名单（PLATFORM_WHITELIST 子集）：
+     * 这些路由跳过读写拦截（canWrite/canRead）但仍走租户状态校验。
+     *
+     * 设计动机：登录/邀请接受虽是 POST，但语义是「认证」而非「业务写」。
+     * - /api/auth/login          成员登录：PENDING/UNPAID 租户应允许登录（只是不能写业务数据）
+     * - /api/member/invite/accept 接受邀请：用户尚未登录，无 memberRole，canWrite 会因角色为 null 走非常规分支
+     */
+    private const AUTHN_WHITELIST = [
+        '#^/api/auth/login$#',
+        '#^/api/member/invite/accept$#',
     ];
 
     public function __construct(
@@ -104,6 +121,12 @@ class TenantContextMiddleware
         }
 
         // ============ (c) 读写拦截 ============
+        // 认证类路由（登录/邀请接受）跳过读写拦截：登录是「认证」而非「业务写」，
+        // PENDING/UNPAID 状态的租户应允许登录（只是登录后不能调写接口）
+        if ($this->isAuthenticationRoute($request)) {
+            return $next($request);
+        }
+
         $isWrite = in_array(strtoupper($request->method()), self::WRITE_METHODS, true);
         $result = $isWrite ? $ctx->canWrite() : $ctx->canRead();
         if (!$result['allowed']) {
@@ -116,12 +139,28 @@ class TenantContextMiddleware
     }
 
     /**
+     * 当前路由是否为「认证类」路由（跳过读写拦截）
+     */
+    private function isAuthenticationRoute(Request $request): bool
+    {
+        $path = '/' . ltrim($request->pathinfo(), '/');
+        foreach (self::AUTHN_WHITELIST as $pattern) {
+            if (preg_match($pattern, $path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 上下文注入优先级：
      *  1. JWT Bearer Token（Authorization: Bearer xxx）
      *     - is_super_admin=true → 注入超管身份
      *     - is_super_admin=false → 注入租户成员身份（member_id/tenant_id/role）
-     *  2. 开发模式头（TENANT_DEV_MODE=true）：仅当无 JWT 时生效，方便测试
-     *  3. X-Target-Tenant-Id：超管身份注入后，再读该头切到目标租户
+     *  2. X-Tenant-Id 头（无 JWT 时）：仅注入 tenant_id，不注入 memberId/role/superAdmin
+     *     用于白名单接口（如 /api/auth/login）让 Service 在已知 tenant_id 下隔离查询
+     *  3. 开发模式头（TENANT_DEV_MODE=true）：完整身份注入，仅测试用
+     *  4. X-Target-Tenant-Id：超管身份注入后，再读该头切到目标租户
      *
      * @throws \RuntimeException JWT 验证失败时（中间件层捕获转 401）
      */
@@ -156,7 +195,15 @@ class TenantContextMiddleware
             return;
         }
 
-        // 优先级 2：开发模式头注入（仅测试用，生产环境必须 TENANT_DEV_MODE=false）
+        // 优先级 2：无 JWT 时通过 X-Tenant-Id 头注入 tenant_id（生产登录路径）
+        // 仅注入 tenant_id，绝不注入 memberId/role/superAdmin（防止伪造身份越权）
+        $tenantIdHeader = $request->header('X-Tenant-Id');
+        if ($tenantIdHeader !== null && $tenantIdHeader !== '') {
+            $ctx->setTenantId((int) $tenantIdHeader);
+            return;
+        }
+
+        // 优先级 3：开发模式头注入（仅测试用，生产环境必须 TENANT_DEV_MODE=false）
         $this->injectDevHeaders($request, $ctx);
     }
 

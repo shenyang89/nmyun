@@ -42,6 +42,25 @@ Route::group('api', function () {
     // 审计日志查询
     Route::get('sadmin/audit-logs', 'SuperAdminAuditLogController/list');
 
+    // ---- Phase 1.8 租户成员认证 + 成员管理 ----
+    // 成员登录（白名单：无 JWT 可访问，需 X-Tenant-Id 头）
+    Route::post('auth/login', 'TenantMemberController/login');
+
+    // 创建邀请（需 JWT + Owner/Admin 角色）
+    Route::post('member/invite', 'TenantMemberController/invite');
+
+    // 接受邀请（白名单：无 JWT 可访问，通过 invite_token 反查租户）
+    Route::post('member/invite/accept', 'TenantMemberController/acceptInvite');
+
+    // 成员列表（需 JWT，所有登录成员可看）
+    Route::get('member', 'TenantMemberController/list');
+
+    // 修改成员角色（需 JWT + Owner/Admin）
+    Route::patch('member/:id/role', 'TenantMemberController/changeRole');
+
+    // 移除成员（需 JWT + Owner/Admin）
+    Route::delete('member/:id', 'TenantMemberController/remove');
+
     // 后续业务模块在这里追加……
     // Route::get('supplier/list',        'SupplierController/list');      // 产地供应商（链路A）
     // Route::get('buyer/list',           'BuyerController/list');         // B端采购方（链路B）
