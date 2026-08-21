@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app\model;
 
@@ -23,7 +23,7 @@ abstract class BaseModel extends Model
 
     // 默认每页数量（Repository 分页用）
     public const DEFAULT_PAGE_SIZE = 15;
-    public const MAX_PAGE_SIZE     = 100;
+    public const MAX_PAGE_SIZE = 100;
 
     /**
      * 查询允许的字段（避免 input() 把所有字段都塞进 where 导致 SQL 注入）

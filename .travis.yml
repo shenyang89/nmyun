@@ -28,6 +28,10 @@ install:
   - zip -r --exclude='*.git*' --exclude='*.zip' --exclude='*.travis.yml' ThinkPHP_Full.zip .
 
 script:
+  # 代码规范检查（CS + Stan，不通过即 red）
+  - vendor/bin/php-cs-fixer fix --dry-run --allow-unsupported-php-version=true
+  - vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+  # 单元测试
   - php think unit
 
 deploy:

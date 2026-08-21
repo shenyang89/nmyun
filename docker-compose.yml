@@ -1,0 +1,88 @@
+# 智慧农贸云（nmyun）一键开发环境
+# 使用：docker compose up -d
+# 服务清单：postgres + redis + emqx + zlmediakit（4 个基础设施容器）
+# PHP 应用用宿主机 `php think run` 运行，避免容器内文件同步延迟
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nmyun-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nmyun
+      POSTGRES_USER: nmyun
+      POSTGRES_PASSWORD: nmyun123
+      TZ: Asia/Shanghai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./docker/pg/init:/docker-entrypoint-initdb.d  # 放建表/扩展 SQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nmyun -d nmyun"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nmyun-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ""  # 开发环境无密码
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  emqx:
+    image: emqx/emqx:5.8
+    container_name: nmyun-emqx
+    restart: unless-stopped
+    environment:
+      EMQX_NAME: nmyun
+      EMQX_HOST: 127.0.0.1
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: "nmyun123"  # 管理后台默认密码
+    ports:
+      - "1883:1883"     # MQTT TCP
+      - "8083:8083"     # MQTT WebSocket
+      - "8084:8084"     # MQTT WSS
+      - "8883:8883"     # MQTT SSL
+      - "18083:18083"   # 管理后台
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - ./docker/emqx/emqx.conf:/opt/emqx/etc/emqx.conf  # 自定义配置（Phase 3）
+    healthcheck:
+      test: ["CMD", "emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zlmediakit:
+    image: zlmediakit/zlmediakit:master
+    container_name: nmyun-zlm
+    restart: unless-stopped
+    ports:
+      - "80:80"         # HTTP API
+      - "554:554"       # RTSP
+      - "1935:1935"     # RTMP
+      - "8050:8050"     # RTC
+    volumes:
+      - zlm_data:/opt/media/conf
+      - zlm_record:/opt/media/www/record
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://127.0.0.1:80/index/api/getServerConfig | grep -q code"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+  redis_data:
+  emqx_data:
+  zlm_data:
+  zlm_record:

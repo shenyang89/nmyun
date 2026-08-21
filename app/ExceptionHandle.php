@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace app;
 
 use app\exceptions\BusinessException;
@@ -93,7 +95,7 @@ class ExceptionHandle extends Handle
             : '服务器内部错误，请稍后重试';
 
         return $this->toJson(50000, $message, $debug ? [
-            'trace'   => collect($e->getTrace())->take(20)->map(fn ($t) => [
+            'trace' => collect($e->getTrace())->slice(0, 20)->map(fn ($t) => [
                 'file' => $t['file'] ?? '',
                 'line' => $t['line'] ?? 0,
                 'call' => ($t['class'] ?? '') . ($t['type'] ?? '') . ($t['function'] ?? ''),
@@ -108,10 +110,10 @@ class ExceptionHandle extends Handle
     {
         return match (true) {
             $e instanceof UnauthorizedException && $e->getCode() >= 40300 => 403,
-            $e instanceof UnauthorizedException                         => 401,
-            $e instanceof NotFoundException                              => 404,
-            $e instanceof ValidationException                            => 200,
-            default                                                       => 200,
+            $e instanceof UnauthorizedException => 401,
+            $e instanceof NotFoundException => 404,
+            $e instanceof ValidationException => 200,
+            default => 200,
         };
     }
 
@@ -121,9 +123,9 @@ class ExceptionHandle extends Handle
     protected function toJson(int $code, string $message, mixed $data, int $httpStatus): Response
     {
         return json([
-            'code'      => $code,
-            'message'   => $message,
-            'data'      => $data,
+            'code' => $code,
+            'message' => $message,
+            'data' => $data,
             'timestamp' => time(),
         ], $httpStatus, [
             'Content-Type' => 'application/json; charset=utf-8',

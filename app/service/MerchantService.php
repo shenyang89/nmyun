@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app\service;
 
@@ -25,6 +25,7 @@ class MerchantService extends BaseService
      */
     public function detail(int $id): ?Merchant
     {
+        /** @var Merchant|null */
         return $this->repo()->findById($id);
     }
 
@@ -39,7 +40,7 @@ class MerchantService extends BaseService
     /**
      * 商户列表（基础分页）
      *
-     * @param  array<string,mixed> $where    精确条件，例如 ['status'=>1]、[['id','>',10]]
+     * @param array<string,mixed> $where 精确条件，例如 ['status'=>1]、[['id','>',10]]
      */
     public function listPage(array $where, int $page, int $pageSize, string $order = 'id DESC'): array
     {
@@ -53,7 +54,7 @@ class MerchantService extends BaseService
      * 2. 商户名称不能为空
      *
      * @param  array{merchant_no:string, name:string, owner_name?:string, phone?:string, stall_no?:string, status?:int} $data
-     * @throws BusinessException 商户编号已存在
+     * @throws BusinessException                                                                                        商户编号已存在
      */
     public function create(array $data): Merchant
     {
@@ -71,11 +72,11 @@ class MerchantService extends BaseService
 
         return $this->repo()->create([
             'merchant_no' => $data['merchant_no'],
-            'name'        => $data['name'],
-            'owner_name'  => $data['owner_name'] ?? '',
-            'phone'       => $data['phone'] ?? '',
-            'stall_no'    => $data['stall_no'] ?? '',
-            'status'      => $data['status'] ?? 1,
+            'name' => $data['name'],
+            'owner_name' => $data['owner_name'] ?? '',
+            'phone' => $data['phone'] ?? '',
+            'stall_no' => $data['stall_no'] ?? '',
+            'status' => $data['status'] ?? 1,
         ]);
     }
 
@@ -85,11 +86,11 @@ class MerchantService extends BaseService
     public function update(int $id, array $data): Merchant
     {
         return $this->repo()->updateById($id, [
-            'name'       => $data['name']        ?? null,
-            'owner_name' => $data['owner_name']  ?? null,
-            'phone'      => $data['phone']       ?? null,
-            'stall_no'   => $data['stall_no']    ?? null,
-            'status'     => isset($data['status']) ? (int) $data['status'] : null,
+            'name' => $data['name'] ?? null,
+            'owner_name' => $data['owner_name'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'stall_no' => $data['stall_no'] ?? null,
+            'status' => isset($data['status']) ? (int) $data['status'] : null,
         ]);
     }
 

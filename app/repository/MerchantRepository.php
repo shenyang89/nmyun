@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app\repository;
 
@@ -22,6 +22,7 @@ class MerchantRepository extends BaseRepository
      */
     public function findByMerchantNo(string $merchantNo): ?Merchant
     {
+        /** @var Merchant|null */
         return $this->findBy('merchant_no', $merchantNo);
     }
 }

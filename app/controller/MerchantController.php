@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app\controller;
 
@@ -28,9 +28,9 @@ class MerchantController extends BaseController
      */
     public function list()
     {
-        $where      = [];
-        $status     = input('status');
-        $keyword    = trim((string) input('keyword', ''));
+        $where = [];
+        $status = input('status');
+        $keyword = trim((string) input('keyword', ''));
         if ($status !== '' && $status !== null) {
             $where[] = ['status', '=', (int) $status];
         }
@@ -98,7 +98,7 @@ class MerchantController extends BaseController
     public function changeStatus(int $id)
     {
         $status = (int) $this->request->post('status');
-        $model  = $this->merchantService->changeStatus($id, $status);
+        $model = $this->merchantService->changeStatus($id, $status);
         return $this->success($model->toArray(), '状态已更新');
     }
 

@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app\exceptions;
 
@@ -10,8 +10,8 @@ namespace app\exceptions;
  */
 class UnauthorizedException extends BusinessException
 {
-    public const NOT_LOGIN   = 40101;
-    const FORBIDDEN = 40301;
+    public const NOT_LOGIN = 40101;
+    public const FORBIDDEN = 40301;
 
     public function __construct(
         string $message = '请先登录',

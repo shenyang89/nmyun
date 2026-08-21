@@ -25,11 +25,18 @@
         "topthink/think-orm": "^3.0",
         "topthink/think-filesystem": "^2.0",
         "topthink/think-cors": "^1.0",
-        "predis/predis": "^3.6"
+        "predis/predis": "^3.6",
+        "topthink/think-migration": "^3.1",
+        "php-mqtt/client": "^2.3",
+        "firebase/php-jwt": "^7.1",
+        "aliyuncs/oss-sdk-php": "^2.7"
     },
     "require-dev": {
         "symfony/var-dumper": ">=4.2",
-        "topthink/think-trace": "^1.0"
+        "topthink/think-trace": "^1.0",
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpstan/phpstan": "^2.2",
+        "pestphp/pest": "^5.1"
     },
     "autoload": {
         "psr-4": {

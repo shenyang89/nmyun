@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 // +----------------------------------------------------------------------
 // | 智慧农贸云 路由定义
 // +----------------------------------------------------------------------
@@ -13,12 +15,12 @@ Route::get('hello/:name', 'index/hello');
 // -------- API 路由（统一前缀 /api） --------
 Route::group('api', function () {
     // ---- 商户管理（链路A/B/C 通用）----
-    Route::get('merchant/list',            'MerchantController/list');
-    Route::get('merchant/:id',              'MerchantController/detail');
-    Route::post('merchant',                 'MerchantController/create');
-    Route::put('merchant/:id',              'MerchantController/update');
-    Route::patch('merchant/:id/status',     'MerchantController/changeStatus');
-    Route::delete('merchant/:id',           'MerchantController/delete');
+    Route::get('merchant/list', 'MerchantController/list');
+    Route::get('merchant/:id', 'MerchantController/detail');
+    Route::post('merchant', 'MerchantController/create');
+    Route::put('merchant/:id', 'MerchantController/update');
+    Route::patch('merchant/:id/status', 'MerchantController/changeStatus');
+    Route::delete('merchant/:id', 'MerchantController/delete');
 
     // 后续业务模块在这里追加……
     // Route::get('supplier/list',        'SupplierController/list');      // 产地供应商（链路A）

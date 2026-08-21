@@ -1,6 +1,6 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app;
 
@@ -49,21 +49,22 @@ abstract class BaseController
 
     public function __construct(App $app)
     {
-        $this->app     = $app;
+        $this->app = $app;
         $this->request = $this->app->request;
         $this->initialize();
     }
 
     protected function initialize()
-    {}
+    {
+    }
 
     /**
      * 验证数据（失败自动抛 ValidateException，被 ExceptionHandle 捕获转 JSON）
      *
-     * @param  array                    $data
-     * @param  string|array             $validate 验证器名或规则数组
-     * @param  array                    $message  自定义提示
-     * @param  bool                     $batch    是否批量校验
+     * @param  array             $data
+     * @param  string|array      $validate 验证器名或规则数组
+     * @param  array             $message  自定义提示
+     * @param  bool              $batch    是否批量校验
      * @throws ValidateException
      * @return true
      */

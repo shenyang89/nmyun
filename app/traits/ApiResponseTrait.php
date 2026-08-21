@@ -1,10 +1,9 @@
 <?php
 
-declare (strict_types = 1);
+declare (strict_types=1);
 
 namespace app\traits;
 
-use think\Response;
 use think\response\Json;
 
 /**
@@ -59,11 +58,11 @@ trait ApiResponseTrait
         return $this->renderJson(0, $message, [
             'list' => $list,
             'meta' => [
-                'page'        => $page,
-                'page_size'   => $pageSize,
-                'total'       => $total,
-                'total_page'  => $totalPage,
-                'has_more'    => $page < $totalPage,
+                'page' => $page,
+                'page_size' => $pageSize,
+                'total' => $total,
+                'total_page' => $totalPage,
+                'has_more' => $page < $totalPage,
             ],
         ]);
     }
@@ -82,9 +81,9 @@ trait ApiResponseTrait
     protected function renderJson(int $code, string $message, mixed $data): Json
     {
         $payload = [
-            'code'      => $code,
-            'message'   => $message,
-            'data'      => $data,
+            'code' => $code,
+            'message' => $message,
+            'data' => $data,
             'timestamp' => time(),
         ];
 
