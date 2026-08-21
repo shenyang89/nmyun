@@ -4,8 +4,10 @@ declare (strict_types=1);
 
 namespace app\repository;
 
+use app\exceptions\CrossTenantException;
 use app\exceptions\NotFoundException;
 use app\model\BaseModel;
+use app\support\TenantContext;
 use think\Collection;
 use think\db\BaseQuery;
 use think\facade\Db;
@@ -18,6 +20,11 @@ use think\Model;
  * - Service 层**只能**调用 Repository 读写数据，不能直接 use Model::xxx()
  * - Repository 只做 CRUD + 基础查询构造，不写业务逻辑
  * - Repository 不 throw 业务异常，但会抛 NotFoundException（当 findOrFail 未找到时）
+ *
+ * §13.8.5 多租户隔离「Repository 二次校验」双保险：
+ * - findById/findOrFail/updateById/deleteById 取到 model 后再次断言 model.tenant_id === ctx.tenant_id
+ * - 防止开发者绕过 BaseModel 全局 Scope（withoutScope / 裸 Db::name）造成的越权
+ * - 不一致立即抛 CrossTenantException(40301)
  *
  * @template TModel of BaseModel
  */
@@ -58,7 +65,14 @@ abstract class BaseRepository
     public function findById(int|string $id): ?BaseModel
     {
         /** @var BaseModel|null */
-        return $this->query()->find($id);
+        $model = $this->query()->find($id);
+
+        // 二次校验：scope 失效时通过 Repository 兜底（§13.8.5 双保险）
+        if ($model !== null) {
+            $this->assertTenantMatch($model);
+        }
+
+        return $model;
     }
 
     /**
@@ -67,7 +81,7 @@ abstract class BaseRepository
      * @param  int|string        $id
      * @param  string            $message 可选自定义错误信息
      * @return TModel
-     * @throws NotFoundException
+     * @throws NotFoundException | CrossTenantException
      */
     public function findOrFail(int|string $id, string $message = ''): BaseModel
     {
@@ -84,7 +98,11 @@ abstract class BaseRepository
     public function findBy(string $field, mixed $value): ?BaseModel
     {
         /** @var BaseModel|null */
-        return $this->query()->where($field, $value)->find();
+        $model = $this->query()->where($field, $value)->find();
+        if ($model !== null) {
+            $this->assertTenantMatch($model);
+        }
+        return $model;
     }
 
     /**
@@ -136,6 +154,7 @@ abstract class BaseRepository
      *
      * @param  array<string,mixed> $data
      * @return TModel
+     * @throws CrossTenantException 当 data.tenant_id 与 ctx 不一致时（onBeforeInsert + Repository 双保险）
      */
     public function create(array $data): BaseModel
     {
@@ -151,10 +170,11 @@ abstract class BaseRepository
      * @param  int|string          $id
      * @param  array<string,mixed> $data
      * @return TModel
-     * @throws NotFoundException
+     * @throws NotFoundException | CrossTenantException
      */
     public function updateById(int|string $id, array $data): BaseModel
     {
+        // findOrFail 内部已经做了二次校验
         $model = $this->findOrFail($id);
         $model->save($data);
         return $model;
@@ -164,10 +184,11 @@ abstract class BaseRepository
      * 根据主键删除（物理删除；需要软删除的话模型里 use SoftDelete）
      *
      * @param  int|string        $id
-     * @throws NotFoundException
+     * @throws NotFoundException | CrossTenantException
      */
     public function deleteById(int|string $id): bool
     {
+        // findOrFail 内部已经做了二次校验
         $model = $this->findOrFail($id);
         return $model->delete();
     }
@@ -203,5 +224,55 @@ abstract class BaseRepository
             }
         }
         return $query;
+    }
+
+    /**
+     * 二次校验：取到的 model.tenant_id 必须与 ctx.tenant_id 一致
+     *
+     * 设计意图：
+     * - BaseModel::scopeTenant 已经在 SQL where 注入 tenant_id，正常路径下不会越权
+     * - 但是当开发者使用 `withoutScope(['tenant'])` 或裸 `Db::name('merchant')->find()` 时，
+     *   Scope 失效，本方法作为最后一道兜底
+     * - 仅对启用了 tenant_scope 的模型生效（避免对 Tenant/SuperAdmin 等表误判）
+     *
+     * @throws CrossTenantException 当 model.tenant_id !== ctx.tenant_id 时
+     */
+    private function assertTenantMatch(BaseModel $model): void
+    {
+        // 当前模型未启用 tenant scope（如 Tenant/SuperAdmin）→ 跳过
+        if (!property_exists($model, 'enableTenantScope') || !$model->enableTenantScope) {
+            return;
+        }
+
+        $ctx = TenantContext::getInstance();
+        $ctxTenantId = $ctx->getTenantId();
+
+        // 系统级路径（无 ctx）→ 不强制（如 Think Command 巡检脚本）
+        if ($ctxTenantId === null) {
+            return;
+        }
+
+        $modelTenantId = $model->getAttr('tenant_id');
+        if ($modelTenantId === null || $modelTenantId === '') {
+            // 业务表必须有 tenant_id，缺失视为表结构异常
+            throw new CrossTenantException(
+                '记录缺失 tenant_id 字段，无法通过租户隔离校验',
+                40301,
+                ['model' => get_class($model), 'id' => $model->getKey(), 'ctx_tenant_id' => $ctxTenantId]
+            );
+        }
+
+        if ((int) $modelTenantId !== $ctxTenantId) {
+            throw new CrossTenantException(
+                '禁止跨租户访问：记录 tenant_id 与上下文不一致',
+                40301,
+                [
+                    'ctx_tenant_id' => $ctxTenantId,
+                    'model_tenant_id' => (int) $modelTenantId,
+                    'model' => get_class($model),
+                    'id' => $model->getKey(),
+                ]
+            );
+        }
     }
 }
